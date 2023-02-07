@@ -1,8 +1,20 @@
-// TODO: Handle nodejs only dependencies
-import path from 'path';
-import { fetchWithTimeout, fs, spawnSync, isNode, solc } from './utils';
+/* eslint-disable @typescript-eslint/no-var-requires */
+import { fetchWithTimeout } from './utils';
 import { StatusCodes } from 'http-status-codes';
 import { JsonInput } from './types';
+
+let Path: typeof import('path');
+let fs: typeof import('fs');
+let spawnSync: typeof import('child_process').spawnSync;
+if (
+  typeof process !== 'undefined' &&
+  process.env &&
+  process.env.NODE_ENV === 'development'
+) {
+  Path = require('path');
+  fs = require('fs');
+  spawnSync = require('child_process').spawnSync;
+}
 
 const GITHUB_SOLC_REPO =
   'https://github.com/ethereum/solc-bin/raw/gh-pages/linux-amd64/';
@@ -21,21 +33,22 @@ const RECOMPILATION_ERR_MSG =
  */
 
 export async function useCompiler(version: string, solcJsonInput: JsonInput) {
-  if (!isNode) {
-    throw new Error('Not supported in browser');
-  }
   // For nightly builds, Solidity version is saved as 0.8.17-ci.2022.8.9+commit.6b60524c instead of 0.8.17-nightly.2022.8.9+commit.6b60524c.
   // Not possible to retrieve compilers with "-ci.".
   if (version.includes('-ci.')) version = version.replace('-ci.', '-nightly.');
   const inputStringified = JSON.stringify(solcJsonInput);
-  const solcPath = await getSolcExecutable(version);
   let compiled: string | undefined;
 
-  if (solcPath) {
-    const shellOutputBuffer = spawnSync(solcPath, ['--standard-json'], {
-      input: inputStringified,
-      maxBuffer: 1000 * 1000 * 10,
-    });
+  if (spawnSync) {
+    const solcPath = await getSolcExecutable(version);
+    const shellOutputBuffer = spawnSync(
+      solcPath as string,
+      ['--standard-json'],
+      {
+        input: inputStringified,
+        maxBuffer: 1000 * 1000 * 10,
+      }
+    );
 
     // Handle errors.
     let error: false | Error = false;
@@ -76,33 +89,58 @@ export async function useCompiler(version: string, solcJsonInput: JsonInput) {
   return compiledJSON;
 }
 
+export async function useCompilerBrowser(
+  version: string,
+  solcJsonInput: JsonInput
+) {
+  // For nightly builds, Solidity version is saved as 0.8.17-ci.2022.8.9+commit.6b60524c instead of 0.8.17-nightly.2022.8.9+commit.6b60524c.
+  // Not possible to retrieve compilers with "-ci.".
+  if (version.includes('-ci.')) version = version.replace('-ci.', '-nightly.');
+  const inputStringified = JSON.stringify(solcJsonInput);
+  const soljson = await getSolcJs(version);
+  const compiled = soljson.compile(inputStringified);
+  if (!compiled) {
+    throw new Error('Compilation failed. No output from the compiler.');
+  }
+  const compiledJSON = JSON.parse(compiled);
+  const errorMessages = compiledJSON?.errors?.filter(
+    (e: any) => e.severity === 'error'
+  );
+  if (errorMessages && errorMessages.length > 0) {
+    const error = new Error('Compiler error:\n ' + errorMessages);
+    console.error(error);
+    throw error;
+  }
+  console.log(`Compiled successfully with solc version ${version}`);
+  return compiledJSON;
+}
+
 // TODO: Handle where and how solc is saved
 async function getSolcExecutable(version: string): Promise<string | null> {
-  if (!isNode) {
+  if (!fs) {
     throw new Error('Not supported in browser');
   }
   const fileName = `solc-linux-amd64-v${version}`;
   const tmpSolcRepo =
-    process.env.SOLC_REPO_TMP || path.join('/tmp', 'solc-repo');
+    process.env.SOLC_REPO_TMP || Path.join('/tmp', 'solc-repo');
 
   const repoPaths = [tmpSolcRepo, process.env.SOLC_REPO || 'solc-repo'];
   for (const repoPath of repoPaths) {
-    const solcPath = path.join(repoPath, fileName);
+    const solcPath = Path.join(repoPath, fileName);
     if (fs.existsSync(solcPath) && validateSolcPath(solcPath)) {
       return solcPath;
     }
   }
 
-  const tmpSolcPath = path.join(tmpSolcRepo, fileName);
+  const tmpSolcPath = Path.join(tmpSolcRepo, fileName);
   const success = await fetchSolcFromGitHub(tmpSolcPath, version, fileName);
   return success ? tmpSolcPath : null;
 }
 
 function validateSolcPath(solcPath: string): boolean {
-  if (!isNode) {
+  if (!spawnSync) {
     throw new Error('Not supported in browser');
   }
-  // TODO: Handle nodejs only dependencies
   const spawned = spawnSync(solcPath, ['--version']);
   if (spawned.status === 0) {
     return true;
@@ -122,14 +160,14 @@ async function fetchSolcFromGitHub(
   version: string,
   fileName: string
 ): Promise<boolean> {
-  if (!isNode) {
+  if (!fs) {
     throw new Error('Not supported in browser');
   }
   const githubSolcURI = GITHUB_SOLC_REPO + encodeURIComponent(fileName);
   const res = await fetchWithTimeout(githubSolcURI);
   // TODO: Handle nodejs only dependencies
   if (res.status === StatusCodes.OK) {
-    fs.mkdirSync(path.dirname(solcPath), { recursive: true });
+    fs.mkdirSync(Path.dirname(solcPath), { recursive: true });
     const buffer = await res.arrayBuffer();
 
     try {
@@ -170,28 +208,15 @@ async function fetchSolcFromGitHub(
  * @returns the requested solc instance
  */
 export function getSolcJs(version = 'latest'): Promise<any> {
-  if (!isNode) {
-    throw new Error('Not supported in browser');
-  }
   // /^\d+\.\d+\.\d+\+commit\.[a-f0-9]{8}$/
   version = version.trim();
   if (version !== 'latest' && !version.startsWith('v')) {
     version = 'v' + version;
   }
 
-  const soljsonRepo = process.env.SOLJSON_REPO || 'soljson-repo';
-  const soljsonPath = path.resolve(soljsonRepo, `soljson-${version}.js`);
-
-  if (fs.existsSync(soljsonPath)) {
-    console.log(`Using local solcjs ${version} from ${soljsonPath}`);
-    return new Promise((resolve) => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const soljson = solc.setupMethods(require(soljsonPath));
-      resolve(soljson);
-    });
-  }
-
   return new Promise((resolve, reject) => {
+    const wrapper = require('solc/wrapper');
+    const solc = wrapper((window as any)?.Module);
     solc.loadRemoteVersion(version, (error: Error, soljson: any) => {
       if (error) {
         console.error(error);

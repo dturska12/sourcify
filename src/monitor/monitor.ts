@@ -270,7 +270,7 @@ class ChainMonitor extends EventEmitter {
         this.chainId,
         address,
         undefined,
-        creatorTx
+        creatorTx.hash
       );
       await this.repositoryService.storeMatch(contract, match);
       this.emit("contract-verified-successfully", this.chainId, address);

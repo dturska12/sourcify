@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import Web3 from 'web3';
 import { CheckedContract } from './CheckedContract';
 import {
@@ -7,8 +8,19 @@ import {
   PathContent,
   StringMap,
 } from './types';
-import JSZip from 'jszip';
-import { Path, fs, isNode } from './utils';
+
+let Path: typeof import('path');
+let fs: typeof import('fs');
+let JSZip: typeof import('jszip');
+if (
+  typeof process !== 'undefined' &&
+  process.env &&
+  process.env.NODE_ENV === 'development'
+) {
+  Path = require('path');
+  fs = require('fs');
+  JSZip = require('jszip');
+}
 
 /**
  * Regular expression matching metadata nested within another json.
@@ -33,7 +45,7 @@ const ENDING_VARIATORS = [
 ];
 
 export function checkPaths(paths: string[], ignoring?: string[]) {
-  if (!isNode) {
+  if (!fs) {
     throw new Error('Not supported in browser');
   }
   const files: PathBuffer[] = [];
@@ -158,6 +170,9 @@ function isZip(file: Buffer): boolean {
  * @returns the unzipped files as an array
  */
 async function unzip(zippedFile: PathBuffer) {
+  if (!JSZip) {
+    throw new Error('Not supported in browser');
+  }
   const zip = new JSZip();
   const unzipped: PathBuffer[] = [];
   try {
@@ -387,7 +402,7 @@ function traversePathRecursively(
   worker: (filePath: string) => void,
   afterDirectory?: (filePath: string) => void
 ) {
-  if (!isNode) {
+  if (!fs) {
     throw new Error('Not supported in browser');
   }
   if (!fs.existsSync(path)) {

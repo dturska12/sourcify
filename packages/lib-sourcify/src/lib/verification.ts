@@ -32,7 +32,7 @@ export async function verifyDeployed(
   sourcifyChain: SourcifyChain,
   address: string,
   contextVariables?: ContextVariables,
-  creatorTx?: any
+  creatorTxHash?: string
 ): Promise<Match> {
   const match: Match = {
     address,
@@ -76,13 +76,13 @@ export async function verifyDeployed(
 
   // If same length, highly likely these contracts are a match but immutable vars. may be affecting the match
   // Try to match with creationTx, if available
-  if (creatorTx) {
+  if (creatorTxHash) {
     await matchWithCreationTx(
       match,
       recompiled.creationBytecode,
       sourcifyChain,
       address,
-      creatorTx
+      creatorTxHash
     );
     if (match.status) return match;
   }
@@ -260,24 +260,15 @@ export async function matchWithCreationTx(
   recompiledCreationBytecode: string,
   sourcifyChain: SourcifyChain,
   address: string,
-  creatorTx?: any
+  creatorTxHash: string
 ) {
-  let creatorTxData;
-  let creatorTxDerived;
-  if (creatorTx?.input) {
-    creatorTxData = creatorTx?.input;
-    creatorTxDerived = creatorTx;
-  } else if (creatorTx?.hash) {
-    creatorTxDerived = await getTx(creatorTx?.hash, sourcifyChain);
-    creatorTxData = creatorTxDerived.input;
-  } else {
-    throw new Error('creatorTx should provide at least the creatorTxHash');
-  }
+  const creatorTxDerived = await getTx(creatorTxHash, sourcifyChain);
+  const creatorTxData = creatorTxDerived.input;
 
   // Initially we need to check if this contract creation tx actually yields the same contract address https://github.com/ethereum/sourcify/issues/887
   const createdContractAddress = calculateCreateAddress(creatorTxDerived);
   if (createdContractAddress !== address) {
-    match.message = `The address being verified ${address} doesn't match the address of the contract ${createdContractAddress} that will be created by the transaction ${creatorTx.hash}.`;
+    match.message = `The address being verified ${address} doesn't match the address of the contract ${createdContractAddress} that will be created by the transaction ${creatorTxHash}.`;
     return;
   }
 

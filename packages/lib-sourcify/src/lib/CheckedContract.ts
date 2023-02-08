@@ -1,4 +1,3 @@
-import Web3 from 'web3';
 import {
   CompilableMetadata,
   InvalidSources,
@@ -11,6 +10,15 @@ import {
 import semver from 'semver';
 import { useCompiler } from './solidityCompiler';
 import { fetchWithTimeout } from './utils';
+
+let Web3: any;
+if (
+  typeof process !== 'undefined' &&
+  process.env &&
+  process.env.NODE_ENV === 'development'
+) {
+  Web3 = require('web3');
+}
 
 // TODO: find a better place for these constants. Reminder: this sould work also in the browser
 const IPFS_PREFIX = 'dweb:/ipfs/';

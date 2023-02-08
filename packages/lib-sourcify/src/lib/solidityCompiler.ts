@@ -2,6 +2,7 @@
 import { fetchWithTimeout } from './utils';
 import { StatusCodes } from 'http-status-codes';
 import { JsonInput } from './types';
+import { browserSolidityCompiler } from './browser.solidity.worker';
 
 let Path: typeof import('path');
 let fs: typeof import('fs');
@@ -97,7 +98,8 @@ export async function useCompilerBrowser(
   // Not possible to retrieve compilers with "-ci.".
   if (version.includes('-ci.')) version = version.replace('-ci.', '-nightly.');
   const inputStringified = JSON.stringify(solcJsonInput);
-  const soljson = await getSolcJs(version);
+  return inputStringified;
+  /* const soljson = await getSolcJs(version);
   const compiled = soljson.compile(inputStringified);
   if (!compiled) {
     throw new Error('Compilation failed. No output from the compiler.');
@@ -112,7 +114,7 @@ export async function useCompilerBrowser(
     throw error;
   }
   console.log(`Compiled successfully with solc version ${version}`);
-  return compiledJSON;
+  return compiledJSON; */
 }
 
 // TODO: Handle where and how solc is saved
@@ -191,6 +193,30 @@ async function fetchSolcFromGitHub(
   return false;
 }
 
+class Compiler {
+  private worker: Worker;
+  private version: string = '';
+  constructor(workerContent: any) {
+    this.worker = new Worker(
+      URL.createObjectURL(
+        new Blob([`(${workerContent})()`], { type: 'module' })
+      )
+    );
+  }
+  setVersion(version: string) {
+    this.version = 'https://binaries.soliditylang.org/bin/' + version + '.js';
+  }
+  compile(input: string) {
+    return new Promise((resolve, reject) => {
+      this.worker.postMessage({ input, version: this.version });
+      this.worker.onmessage = function ({ data }) {
+        resolve(data);
+      };
+      this.worker.onerror = reject;
+    });
+  }
+}
+
 /**
  * Fetches the requested version of the Solidity compiler (soljson).
  * First attempts to search locally; if that fails, falls back to downloading it.
@@ -207,24 +233,14 @@ async function fetchSolcFromGitHub(
  *
  * @returns the requested solc instance
  */
-export function getSolcJs(version = 'latest'): Promise<any> {
+export async function getSolcJs(version = 'latest'): Promise<any> {
   // /^\d+\.\d+\.\d+\+commit\.[a-f0-9]{8}$/
   version = version.trim();
   if (version !== 'latest' && !version.startsWith('v')) {
     version = 'v' + version;
   }
 
-  return new Promise((resolve, reject) => {
-    const wrapper = require('solc/wrapper');
-    const solc = wrapper((window as any)?.Module);
-    solc.loadRemoteVersion(version, (error: Error, soljson: any) => {
-      if (error) {
-        console.error(error);
-        reject(error);
-      } else {
-        console.log(`Got solcjs ${version}`);
-        resolve(soljson);
-      }
-    });
-  });
+  const compiler = new Compiler(browserSolidityCompiler);
+  compiler.setVersion(version);
+  return compiler;
 }

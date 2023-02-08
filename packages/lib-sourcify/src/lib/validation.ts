@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import Web3 from 'web3';
 import { CheckedContract } from './CheckedContract';
 import {
   InvalidSources,
@@ -9,6 +8,7 @@ import {
   StringMap,
 } from './types';
 
+let Web3: any;
 let Path: typeof import('path');
 let fs: typeof import('fs');
 let JSZip: typeof import('jszip');
@@ -17,6 +17,7 @@ if (
   process.env &&
   process.env.NODE_ENV === 'development'
 ) {
+  Web3 = require('web3');
   Path = require('path');
   fs = require('fs');
   JSZip = require('jszip');

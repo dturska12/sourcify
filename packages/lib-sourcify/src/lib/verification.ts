@@ -6,24 +6,46 @@ import {
   SourcifyChain,
   StringMap,
 } from './types';
-import { toChecksumAddress } from 'web3-utils';
-import { Transaction } from 'web3-core';
-import Web3 from 'web3';
 import {
   decode as bytecodeDecode,
   splitAuxdata,
 } from '@ethereum-sourcify/bytecode-utils';
-import { EVM } from '@ethereumjs/evm';
-import { EEI } from '@ethereumjs/vm';
-import { Address } from '@ethereumjs/util';
-import { Common } from '@ethereumjs/common';
-import { DefaultStateManager } from '@ethereumjs/statemanager';
-import { Blockchain } from '@ethereumjs/blockchain';
-import { encode as rlpEncode } from '@ethersproject/rlp';
-import { hexZeroPad, isHexString } from '@ethersproject/bytes';
-import { BigNumber } from '@ethersproject/bignumber';
-import { getAddress } from '@ethersproject/address';
 import semverSatisfies from 'semver/functions/satisfies';
+
+let Web3: any;
+let Transaction: any;
+let Address: typeof import('@ethereumjs/util').Address;
+let Common: typeof import('@ethereumjs/common').Common;
+let DefaultStateManager: typeof import('@ethereumjs/statemanager').DefaultStateManager;
+let rlpEncode: typeof import('@ethersproject/rlp').encode;
+let hexZeroPad: typeof import('@ethersproject/bytes').hexZeroPad;
+let isHexString: typeof import('@ethersproject/bytes').isHexString;
+let BigNumber: typeof import('@ethersproject/bignumber').BigNumber;
+let getAddress: typeof import('@ethersproject/address').getAddress;
+let EVM: typeof import('@ethereumjs/evm').EVM;
+let EEI: typeof import('@ethereumjs/vm').EEI;
+let Blockchain: typeof import('@ethereumjs/blockchain').Blockchain;
+let toChecksumAddress: typeof import('web3-utils').toChecksumAddress;
+if (
+  typeof process !== 'undefined' &&
+  process.env &&
+  process.env.NODE_ENV === 'development'
+) {
+  Web3 = require('web3');
+  EVM = require('@ethereumjs/evm').EVM;
+  EEI = require('@ethereumjs/vm').EEI;
+  Blockchain = require('@ethereumjs/blockchain').Blockchain;
+  toChecksumAddress = require('web3-utils').toChecksumAddress;
+  Transaction = require('web3-core').Transaction;
+  Address = require('@ethereumjs/util').Address;
+  Common = require('@ethereumjs/common').Common;
+  DefaultStateManager = require('@ethereumjs/statemanager').DefaultStateManager;
+  rlpEncode = require('@ethersproject/rlp').encode;
+  hexZeroPad = require('@ethersproject/bytes').hexZeroPad;
+  isHexString = require('@ethersproject/bytes').isHexString;
+  BigNumber = require('@ethersproject/bignumber').BigNumber;
+  getAddress = require('@ethersproject/address').getAddress;
+}
 
 const RPC_TIMEOUT = 5000;
 
@@ -366,7 +388,7 @@ async function getTx(creatorTxHash: string, sourcifyChain: SourcifyChain) {
       const tx = (await Promise.race([
         web3.eth.getTransaction(creatorTxHash),
         rejectInMs(RPC_TIMEOUT, rpcURL),
-      ])) as Transaction;
+      ])) as typeof Transaction;
       if (tx) {
         console.log(`Transaction ${creatorTxHash} fetched via ${rpcURL}`);
       }
@@ -440,7 +462,7 @@ function d2h(d: number) {
  * @param Transaction - creatorTx
  * @returns string -  calculated address
  */
-function calculateCreateAddress(creatorTx: Transaction) {
+function calculateCreateAddress(creatorTx: typeof Transaction) {
   let nonce = '0x00';
   if (typeof creatorTx.nonce === 'number') {
     nonce = `0x${d2h(creatorTx.nonce)}`;

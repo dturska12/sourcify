@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { ContextProvider } from "./Context";
+import EdgeVerification from "./pages/EdgeVerification";
 import LandingPage from "./pages/LandingPage";
 import Lookup from "./pages/Lookup";
 import Verifier from "./pages/Verifier";
@@ -17,6 +18,7 @@ function App() {
       <ContextProvider>
         <HashRouter>
           <Routes>
+            <Route path="/verifier" element={<EdgeVerification />} />
             <Route path="/verifier" element={<Verifier />} />
             <Route path="/lookup" element={<Lookup />} />
             <Route path="/lookup/:address" element={<Lookup />} />

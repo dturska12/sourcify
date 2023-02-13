@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@ethereum-sourcify/lib-sourcify": "*",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/address": "^5.6.1",
     "@ethersproject/bytes": "^5.7.0",
@@ -37,7 +38,7 @@
     "web-vitals": "^2.1.2"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "react-scripts --max_old_space_size=8192 start",
     "build": "react-scripts build",
     "test": "echo \"Error: no test specified\"",
     "eject": "react-scripts eject",

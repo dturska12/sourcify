@@ -1,8 +1,12 @@
 // TODO: Handle nodejs only dependencies
 import path from 'path';
-import { fetchWithTimeout, fs, spawnSync, isNode, solc } from './utils';
+import { fetchWithTimeout, isNode } from './utils';
 import { StatusCodes } from 'http-status-codes';
 import { JsonInput } from './types';
+import { spawnSync } from 'child_process';
+import fs from 'fs';
+
+const solc = require('solc');
 
 const GITHUB_SOLC_REPO =
   'https://github.com/ethereum/solc-bin/raw/gh-pages/linux-amd64/';

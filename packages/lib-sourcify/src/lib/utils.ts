@@ -10,17 +10,6 @@ export const isNode =
   // eslint-disable-next-line no-prototype-builtins
   process.env.hasOwnProperty('NODE_ENV');
 
-export const fs = isNode ? require('fs') : undefined;
-export const spawnSync = isNode
-  ? // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('child_process').spawnSync
-  : undefined;
-export const Path = isNode ? require('path') : undefined;
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-export const solc = isNode ? require('solc') : undefined;
-
-require('isomorphic-fetch');
-
 interface RequestInitTimeout extends RequestInit {
   timeout?: number;
 }

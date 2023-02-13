@@ -8,7 +8,9 @@ import {
   StringMap,
 } from './types';
 import JSZip from 'jszip';
-import { Path, fs, isNode } from './utils';
+import { isNode } from './utils';
+import Path from 'path';
+import fs from 'fs';
 
 /**
  * Regular expression matching metadata nested within another json.
